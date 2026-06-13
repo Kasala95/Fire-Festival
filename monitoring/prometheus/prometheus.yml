@@ -3,8 +3,16 @@ global:
   evaluation_interval: 5s
 
 scrape_configs:
+  # Scrape the LIVE Render deployment over HTTPS.
+  # (Keeping the free instance warm is a useful side effect of the 5s scrape.)
   - job_name: policy-to-proof
-    # The harness API runs on the host (uvicorn on :8000). host.docker.internal
-    # resolves to the host from inside the Prometheus container.
+    scheme: https
+    metrics_path: /metrics
     static_configs:
-      - targets: ["host.docker.internal:8000"]
+      - targets: ["fire-festival.onrender.com"]
+
+  # Local dev alternative — uncomment and comment out the job above to scrape a
+  # locally running `uvicorn api.main:app --port 8000` instead.
+  # - job_name: policy-to-proof-local
+  #   static_configs:
+  #     - targets: ["host.docker.internal:8000"]
