@@ -37,6 +37,7 @@ to be merged first.
 - If `gt` isn't installed, fall back to plain stacked git branches and say so explicitly.
 
 ## Skills (reusable workflows) — invoke with /<name>
+- **/deploy-agent** — pick where/how to host an agent (5 considerations → 4 questions → platform), then deploy.
 - **/grill-me** — interrogate the plan with hard questions *before* writing code.
 - **/trail-of-bits-security** — rigorous defensive security review of a change.
 - **/karpathy-guidelines** — write / review code for simplicity and readability.
