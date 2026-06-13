@@ -1,3 +1,5 @@
 PyYAML>=6.0
 streamlit>=1.30
 anthropic>=0.39
+prometheus-client>=0.20
+pytest>=8.0

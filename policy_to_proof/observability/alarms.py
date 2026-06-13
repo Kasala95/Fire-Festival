@@ -16,6 +16,7 @@ CATALOG: dict[str, tuple[str, str, bool]] = {
     "INSECURE_DEFAULT":     ("medium",   "Set the secure value explicitly (e.g. encrypted = true).", False),
     "UNMAPPED_REQUIREMENT": ("medium",   "No control maps to this requirement. Escalate to a human (HITL).", False),
     "LOW_CONFIDENCE_FINDING": ("low",    "Worker confidence below threshold. Route to human review.", False),
+    "LIMIT_EXCEEDED":         ("high",    "Bounded-loop cap hit (tokens/time). Halt and review run scope.", True),
 }
 
 
