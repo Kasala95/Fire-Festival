@@ -1,0 +1,191 @@
+ac_log_fail.tf:
+  alarms:
+  - CONTROL_FAILED
+  - INSECURE_DEFAULT
+  - LOW_CONFIDENCE_FINDING
+  controls:
+    AC-LOG: FAIL
+    CICD: PASS
+    ENC: FAIL
+    IAM-LP: N_A
+    SEC-MGMT: N_A
+  decision: NO-SHIP
+  halted: false
+ac_log_pass.tf:
+  alarms:
+  - LOW_CONFIDENCE_FINDING
+  controls:
+    AC-LOG: PASS
+    CICD: PASS
+    ENC: N_A
+    IAM-LP: N_A
+    SEC-MGMT: N_A
+  decision: SHIP
+  halted: false
+bad_everything.tf:
+  alarms:
+  - CONTROL_FAILED
+  - INSECURE_DEFAULT
+  - LOW_CONFIDENCE_FINDING
+  controls:
+    AC-LOG: FAIL
+    CICD: PASS
+    ENC: FAIL
+    IAM-LP: FAIL
+    SEC-MGMT: N_A
+  decision: NO-SHIP
+  halted: false
+clean_shippable.tf:
+  alarms:
+  - LOW_CONFIDENCE_FINDING
+  controls:
+    AC-LOG: PASS
+    CICD: PASS
+    ENC: PASS
+    IAM-LP: N_A
+    SEC-MGMT: PASS
+  decision: SHIP
+  halted: false
+comment_only.tf:
+  alarms:
+  - CONTROL_FAILED
+  - LOW_CONFIDENCE_FINDING
+  controls:
+    AC-LOG: FAIL
+    CICD: PASS
+    ENC: N_A
+    IAM-LP: N_A
+    SEC-MGMT: N_A
+  decision: NO-SHIP
+  halted: false
+empty.tf:
+  alarms:
+  - CONTROL_FAILED
+  - LOW_CONFIDENCE_FINDING
+  controls:
+    AC-LOG: FAIL
+    CICD: PASS
+    ENC: N_A
+    IAM-LP: N_A
+    SEC-MGMT: N_A
+  decision: NO-SHIP
+  halted: false
+enc_fail_ebs.tf:
+  alarms:
+  - CONTROL_FAILED
+  - INSECURE_DEFAULT
+  - LOW_CONFIDENCE_FINDING
+  controls:
+    AC-LOG: FAIL
+    CICD: PASS
+    ENC: FAIL
+    IAM-LP: N_A
+    SEC-MGMT: N_A
+  decision: NO-SHIP
+  halted: false
+enc_fail_rds.tf:
+  alarms:
+  - CONTROL_FAILED
+  - INSECURE_DEFAULT
+  - LOW_CONFIDENCE_FINDING
+  controls:
+    AC-LOG: FAIL
+    CICD: PASS
+    ENC: FAIL
+    IAM-LP: N_A
+    SEC-MGMT: N_A
+  decision: NO-SHIP
+  halted: false
+enc_pass.tf:
+  alarms:
+  - CONTROL_FAILED
+  - LOW_CONFIDENCE_FINDING
+  controls:
+    AC-LOG: FAIL
+    CICD: PASS
+    ENC: PASS
+    IAM-LP: N_A
+    SEC-MGMT: PASS
+  decision: NO-SHIP
+  halted: false
+http_in_transit_fail.tf:
+  alarms:
+  - CONTROL_FAILED
+  - LOW_CONFIDENCE_FINDING
+  controls:
+    AC-LOG: FAIL
+    CICD: PASS
+    ENC: FAIL
+    IAM-LP: N_A
+    SEC-MGMT: N_A
+  decision: NO-SHIP
+  halted: false
+iam_fail.tf:
+  alarms:
+  - CONTROL_FAILED
+  - LOW_CONFIDENCE_FINDING
+  controls:
+    AC-LOG: FAIL
+    CICD: PASS
+    ENC: N_A
+    IAM-LP: FAIL
+    SEC-MGMT: N_A
+  decision: NO-SHIP
+  halted: false
+iam_pass.tf:
+  alarms:
+  - CONTROL_FAILED
+  - LOW_CONFIDENCE_FINDING
+  controls:
+    AC-LOG: FAIL
+    CICD: PASS
+    ENC: N_A
+    IAM-LP: PASS
+    SEC-MGMT: N_A
+  decision: NO-SHIP
+  halted: false
+malformed_braces.tf:
+  alarms:
+  - CONTROL_FAILED
+  - INSECURE_DEFAULT
+  - LOW_CONFIDENCE_FINDING
+  controls:
+    AC-LOG: FAIL
+    CICD: PASS
+    ENC: FAIL
+    IAM-LP: N_A
+    SEC-MGMT: N_A
+  decision: NO-SHIP
+  halted: false
+mixed_log_ok_enc_bad.tf:
+  alarms:
+  - CONTROL_FAILED
+  - INSECURE_DEFAULT
+  - LOW_CONFIDENCE_FINDING
+  controls:
+    AC-LOG: PASS
+    CICD: PASS
+    ENC: FAIL
+    IAM-LP: N_A
+    SEC-MGMT: N_A
+  decision: NO-SHIP
+  halted: false
+secrets_hardcoded.tf:
+  alarms:
+  - SECRET_EXPOSED
+  controls: {}
+  decision: NO-SHIP
+  halted: true
+secrets_kms_clean.tf:
+  alarms:
+  - CONTROL_FAILED
+  - INSECURE_DEFAULT
+  - LOW_CONFIDENCE_FINDING
+  controls:
+    AC-LOG: FAIL
+    CICD: PASS
+    ENC: FAIL
+    IAM-LP: N_A
+    SEC-MGMT: PASS
+  decision: NO-SHIP
+  halted: false
