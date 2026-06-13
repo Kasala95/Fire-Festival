@@ -222,7 +222,8 @@ class Harness:
         # emit Prometheus metrics. Neither may ever break a run, so both are guarded.
         try:
             from ..db.run_repository import RunRepository
-            RunRepository().save_run(record)
+            # DB lives beside the JSON runs dir: prod -> runs/, tests -> their tmp dir.
+            RunRepository(self.store.dir / "policy_to_proof.db").save_run(record)
         except Exception:
             pass
         try:
