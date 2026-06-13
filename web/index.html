@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Policy-to-Proof — compliance harness</title>
+  <link rel="stylesheet" href="/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <h1>Policy-to-Proof</h1>
+      <p class="tagline">Prove infrastructure-as-code is safe enough to ship.</p>
+    </div>
+    <nav>
+      <a href="/metrics" target="_blank">/metrics</a>
+      <a href="http://localhost:3000" target="_blank">Grafana</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="panel scan-panel">
+      <h2>New scan</h2>
+      <label>Target
+        <select id="target"></select>
+      </label>
+      <p id="blurb" class="blurb"></p>
+      <label>Requirement
+        <textarea id="requirement" rows="2">make this app SOC 2 ready before deployment</textarea>
+      </label>
+      <label>Engine (worker)
+        <select id="worker">
+          <option value="stub">stub — deterministic, offline</option>
+          <option value="auto">auto — Claude if key set, else stub</option>
+          <option value="claude">claude — Anthropic API</option>
+        </select>
+      </label>
+      <button id="run">Run scan</button>
+      <p id="scan-status" class="status"></p>
+    </section>
+
+    <section class="panel result-panel">
+      <div id="verdict" class="verdict hidden">
+        <span id="verdict-decision"></span>
+        <span id="verdict-risk"></span>
+      </div>
+      <div id="result-empty" class="empty">Run a scan or pick a past run to see the verdict, control matrix, alarms, evidence, and suggested PR fixes.</div>
+      <div id="result" class="hidden">
+        <div class="tabs">
+          <button class="tab active" data-tab="summary">CISO verdict</button>
+          <button class="tab" data-tab="matrix">Control matrix</button>
+          <button class="tab" data-tab="alarms">Alarms</button>
+          <button class="tab" data-tab="evidence">Evidence</button>
+          <button class="tab" data-tab="diffs">PR diffs</button>
+        </div>
+        <div id="tab-summary" class="tab-body md"></div>
+        <div id="tab-matrix" class="tab-body md hidden"></div>
+        <div id="tab-alarms" class="tab-body hidden"></div>
+        <div id="tab-evidence" class="tab-body md hidden"></div>
+        <div id="tab-diffs" class="tab-body md hidden"></div>
+      </div>
+    </section>
+
+    <section class="panel history-panel">
+      <h2>Run history</h2>
+      <table id="history">
+        <thead>
+          <tr><th>When</th><th>Target</th><th>Engine</th><th>Decision</th><th>Risk</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

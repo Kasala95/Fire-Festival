@@ -1,4 +1,4 @@
-# Render.com deployment for the Policy-to-Proof Streamlit harness.
+# Render.com deployment for the Policy-to-Proof harness (FastAPI + web dashboard).
 # Deploy: push to GitHub, then "New > Blueprint" in Render pointing at this repo.
 services:
   - type: web
@@ -6,7 +6,7 @@ services:
     runtime: python
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: streamlit run app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true
+    startCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: ANTHROPIC_API_KEY
         sync: false        # set in the Render dashboard; never commit the key
