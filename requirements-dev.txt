@@ -1,0 +1,6 @@
+# Dev / test dependencies — NOT installed on the deployed server.
+#   pip install -r requirements-dev.txt
+-r requirements.txt
+streamlit>=1.30   # the alternative Streamlit UI (app.py); not used on Render
+pytest>=8.0       # test suite
+httpx>=0.27       # FastAPI TestClient

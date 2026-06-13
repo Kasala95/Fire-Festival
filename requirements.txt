@@ -1,8 +1,8 @@
+# Runtime dependencies for the deployed FastAPI service (what Render installs).
+# Kept slim on purpose: no test/dev tooling, no Streamlit — those live in
+# requirements-dev.txt. A lean runtime = a fast, reliable free-tier build.
 PyYAML>=6.0
-streamlit>=1.30
 anthropic>=0.39
 prometheus-client>=0.20
-pytest>=8.0
 fastapi>=0.110
 uvicorn[standard]>=0.29
-httpx>=0.27
