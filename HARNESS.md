@@ -38,6 +38,54 @@ central loop. This repo is organized around exactly those pillars:
 | 📊 **Observability** | `policy_to_proof/observability/` | `tracer.py` emits a span per model/tool call + the four reliability signals; `alarms.py` is the structured alarm bus; `store.py` persists runs for checkpoint replay. |
 | ⚙️ _engine_ | `policy_to_proof/worker/` | The swappable agent behind a fixed `Worker` interface. Not a pillar — it's what the pillars wrap. |
 
+### Architecture at a glance
+
+The high-level shape, aligned to the `REQUIREMENTS.pdf` "HOW IT RUNS" flow — three
+guardrail layers (input · action · output), the four **named** ordered gates, and the
+five output artifacts:
+
+```mermaid
+flowchart TD
+    IN["Inputs<br/>IaC + requirement"]
+    GIN["Guardrails — input<br/>strip injection · size-limit · redact secrets"]
+
+    subgraph LOOP["Checkpoint loop — four ordered gates"]
+        direction TB
+        G1["parse_gate<br/>requirement → controls"]
+        G2["control_gate<br/>run scanners · PASS/FAIL/N·A"]
+        G3["evidence_gate<br/>PASS authority — proof required"]
+        G4["remediation_gate<br/>every FAIL has a fix"]
+        G1 --> G2 --> G3 --> G4
+    end
+
+    SCAN["Scanners — tools<br/>deterministic checks"]
+    WORK["Worker — LLM<br/>judgment only · swappable"]
+    GACT["Guardrails — action<br/>read-only target · allow-list · never auto-apply fixes"]
+    GOUT["Guardrails — output<br/>no unproven PASS · redact secrets"]
+    OUT["Outputs<br/>risk score · control matrix · evidence packet · PR diffs · CISO verdict"]
+    OBS["Observability + alarms<br/>OTel span per step · SECRET_EXPOSED → halt before any PASS"]
+
+    IN --> GIN --> LOOP --> GOUT --> OUT
+    SCAN --> GACT
+    WORK --> GACT
+    GACT --> LOOP
+
+    OBS -.-> GIN
+    OBS -.-> LOOP
+    OBS -.-> GOUT
+
+    classDef guard fill:#fdecea,stroke:#c0392b,color:#7b241c;
+    classDef loop fill:#eaeaff,stroke:#4b4bd6,color:#2a2a8a;
+    classDef tool fill:#e8f6ec,stroke:#27ae60,color:#1d6b3b;
+    classDef engine fill:#fdeaf1,stroke:#c0398a,color:#7b1f55;
+    classDef obs fill:#e9f2fc,stroke:#2e6fb5,color:#1c4670;
+    class GIN,GACT,GOUT guard;
+    class LOOP,G1,G2,G3,G4 loop;
+    class SCAN tool;
+    class WORK engine;
+    class OBS obs;
+```
+
 ### The agent loop (train of thought)
 
 ```
