@@ -9,3 +9,4 @@ runs/*.json
 runs/*.db
 runs/*.db-journal
 !runs/.gitkeep
+evals/report.md

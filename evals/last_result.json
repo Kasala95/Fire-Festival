@@ -1,0 +1,90 @@
+{
+  "worker": "stub",
+  "files": 16,
+  "checks": 108,
+  "passed": 108,
+  "pass_rate": 1.0,
+  "per_file": {
+    "ac_log_fail.tf": {
+      "passed": 7,
+      "total": 7,
+      "mismatches": []
+    },
+    "ac_log_pass.tf": {
+      "passed": 7,
+      "total": 7,
+      "mismatches": []
+    },
+    "bad_everything.tf": {
+      "passed": 7,
+      "total": 7,
+      "mismatches": []
+    },
+    "clean_shippable.tf": {
+      "passed": 7,
+      "total": 7,
+      "mismatches": []
+    },
+    "comment_only.tf": {
+      "passed": 7,
+      "total": 7,
+      "mismatches": []
+    },
+    "empty.tf": {
+      "passed": 7,
+      "total": 7,
+      "mismatches": []
+    },
+    "enc_fail_ebs.tf": {
+      "passed": 7,
+      "total": 7,
+      "mismatches": []
+    },
+    "enc_fail_rds.tf": {
+      "passed": 7,
+      "total": 7,
+      "mismatches": []
+    },
+    "enc_pass.tf": {
+      "passed": 7,
+      "total": 7,
+      "mismatches": []
+    },
+    "http_in_transit_fail.tf": {
+      "passed": 7,
+      "total": 7,
+      "mismatches": []
+    },
+    "iam_fail.tf": {
+      "passed": 7,
+      "total": 7,
+      "mismatches": []
+    },
+    "iam_pass.tf": {
+      "passed": 7,
+      "total": 7,
+      "mismatches": []
+    },
+    "malformed_braces.tf": {
+      "passed": 7,
+      "total": 7,
+      "mismatches": []
+    },
+    "mixed_log_ok_enc_bad.tf": {
+      "passed": 7,
+      "total": 7,
+      "mismatches": []
+    },
+    "secrets_hardcoded.tf": {
+      "passed": 3,
+      "total": 3,
+      "mismatches": []
+    },
+    "secrets_kms_clean.tf": {
+      "passed": 7,
+      "total": 7,
+      "mismatches": []
+    }
+  },
+  "timestamp": 1781382175.0918038
+}
