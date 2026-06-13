@@ -12,6 +12,9 @@ Built for the [Fired Festival](https://fired-festival.com/harness) AI-first
 engineering event. This project is judged on the **harness** (the constraints
 around the agent), not the agent itself.
 
+> 📄 **[`REQUIREMENTS.pdf`](REQUIREMENTS.pdf)** is the authoritative client
+> requirement and single source of truth for this project.
+
 ---
 
 ## The one design principle
