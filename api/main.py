@@ -18,15 +18,20 @@ from __future__ import annotations
 import uuid
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import Response
-from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse, Response
+from pydantic import BaseModel, Field
 
 from policy_to_proof.db.run_repository import RunRepository
 from policy_to_proof.loop.orchestrator import Harness
 from policy_to_proof.observability import metrics as prom
 from policy_to_proof.tools import evidence as ev
+from policy_to_proof.tools.ingest import MAX_INPUT_BYTES
 from policy_to_proof.worker import get_worker
+
+# Hard ceiling on any request body (defense against a giant paste exhausting memory
+# before our field-level check runs). Generous over the 512KB Terraform cap.
+MAX_BODY_BYTES = 1_000_000
 
 # Allow-listed scan targets — friendly name -> bundled path. No arbitrary paths.
 EXAMPLES: dict[str, str] = {
@@ -43,10 +48,24 @@ repo = RunRepository()
 
 
 class ScanRequest(BaseModel):
-    target: str = "full_demo"
-    requirement: str = "make this app SOC 2 ready before deployment"
-    worker: str = "stub"
-    run_id: str | None = None
+    # Field caps bound attacker-controlled strings at validation time (defense in
+    # depth with the body-size middleware and the ingest byte cap).
+    target: str = Field(default="full_demo", max_length=200)
+    requirement: str = Field(
+        default="make this app SOC 2 ready before deployment", max_length=2000)
+    worker: str = Field(default="stub", max_length=16)
+    terraform: str | None = Field(default=None, max_length=MAX_BODY_BYTES)
+    # NOTE: no client-supplied run_id — the server always generates it, so a caller
+    # cannot overwrite another run's record (INSERT OR REPLACE keys on run_id).
+
+
+@app.middleware("http")
+async def limit_body_size(request: Request, call_next):
+    cl = request.headers.get("content-length")
+    if cl and cl.isdigit() and int(cl) > MAX_BODY_BYTES:
+        prom.INPUT_REJECTED_TOTAL.labels(reason="body_too_large").inc()
+        return JSONResponse(status_code=413, content={"detail": "request body too large"})
+    return await call_next(request)
 
 
 def _summary(record: dict) -> dict:
@@ -75,15 +94,30 @@ def examples() -> list[dict]:
 
 @app.post("/api/scan")
 def scan(req: ScanRequest) -> dict:
+    if req.worker not in ("stub", "claude", "auto"):
+        raise HTTPException(status_code=400, detail="worker must be stub|claude|auto")
+    run_id = f"web-{uuid.uuid4().hex[:8]}"   # always server-generated
+    harness = Harness(worker=get_worker(req.worker))
+
+    # Pasted Terraform (public, hardened): scanned in memory, never written to disk.
+    if req.terraform and req.terraform.strip():
+        if len(req.terraform.encode("utf-8")) > MAX_INPUT_BYTES:
+            prom.INPUT_REJECTED_TOTAL.labels(reason="input_too_large").inc()
+            raise HTTPException(
+                status_code=413,
+                detail=f"pasted Terraform exceeds {MAX_INPUT_BYTES} bytes")
+        record = harness.run_text("pasted.tf", req.terraform, req.requirement, run_id)
+        if any(a["type"] == "INPUT_REJECTED" for a in record["alarms"]):
+            raise HTTPException(
+                status_code=413,
+                detail="pasted Terraform rejected by an input guardrail")
+        return {"summary": _summary(record), "packet": ev.render_packet(record)}
+
+    # Bundled example (allow-listed path).
     if req.target not in EXAMPLES:
         raise HTTPException(
             status_code=400,
             detail=f"target must be one of {sorted(EXAMPLES)} (allow-list)")
-    if req.worker not in ("stub", "claude", "auto"):
-        raise HTTPException(status_code=400, detail="worker must be stub|claude|auto")
-
-    run_id = req.run_id or f"web-{uuid.uuid4().hex[:8]}"
-    harness = Harness(worker=get_worker(req.worker))
     record = harness.run(EXAMPLES[req.target], req.requirement, run_id)
     return {"summary": _summary(record), "packet": ev.render_packet(record)}
 

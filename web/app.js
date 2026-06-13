@@ -1,7 +1,18 @@
 "use strict";
 
 const $ = (id) => document.getElementById(id);
-const md = (text) => (window.marked ? window.marked.parse(text || "") : `<pre>${text || ""}</pre>`);
+
+function escapeHtml(s) {
+  return (s || "").replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+// Render markdown to SANITIZED html. Evidence snippets contain attacker-pasted
+// Terraform, so raw HTML must never reach innerHTML unsanitized (stored XSS).
+function md(text) {
+  const html = window.marked ? window.marked.parse(text || "") : `<pre>${escapeHtml(text)}</pre>`;
+  return window.DOMPurify ? window.DOMPurify.sanitize(html) : escapeHtml(text);
+}
 
 async function getJSON(url, opts) {
   const res = await fetch(url, opts);
@@ -104,19 +115,33 @@ async function openRun(runId) {
 }
 
 // ---- run a new scan -------------------------------------------------------
+function paste_mode() {
+  return $("paste-toggle").checked;
+}
+
 async function runScan() {
   const btn = $("run");
+  const body = {
+    requirement: $("requirement").value,
+    worker: $("worker").value,
+  };
+  if (paste_mode()) {
+    const tf = $("terraform").value.trim();
+    if (!tf) {
+      $("scan-status").textContent = "Paste some Terraform first.";
+      return;
+    }
+    body.terraform = tf;
+  } else {
+    body.target = $("target").value;
+  }
   btn.disabled = true;
   $("scan-status").textContent = "Running gates…";
   try {
     const data = await getJSON("/api/scan", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        target: $("target").value,
-        requirement: $("requirement").value,
-        worker: $("worker").value,
-      }),
+      body: JSON.stringify(body),
     });
     renderResult(data);
     $("scan-status").textContent = `Done — run ${data.summary.run_id}`;
@@ -131,5 +156,11 @@ async function runScan() {
 // ---- wire up --------------------------------------------------------------
 document.querySelectorAll(".tab").forEach((t) => (t.onclick = () => showTab(t.dataset.tab)));
 $("run").onclick = runScan;
+$("paste-toggle").onchange = () => {
+  const paste = paste_mode();
+  $("paste-wrap").classList.toggle("hidden", !paste);
+  $("target-wrap").classList.toggle("hidden", paste);
+  $("blurb").classList.toggle("hidden", paste);
+};
 loadExamples();
 loadHistory();

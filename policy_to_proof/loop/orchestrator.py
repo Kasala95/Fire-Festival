@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from ..types import Control, Finding, ScanCorpus
 from ..guardrails.guardrails import Guardrails
-from ..tools.ingest import ingest_path, InputRejected
+from ..tools.ingest import ingest_path, ingest_text, InputRejected
 from ..tools.registry import run_scanner, SCANNER_ERROR_NOTE
 from ..tools import evidence as evidence_tool
 from ..observability.alarms import AlarmBus
@@ -42,16 +42,27 @@ class Harness:
         self._now = clock or __import__("time").time
 
     # ------------------------------------------------------------------
-    def run(self, target_path: str, requirement: str, run_id: str) -> dict:
-        alarms = AlarmBus()
-        record: dict = {
+    def _new_record(self, run_id: str, requirement: str, target: str) -> dict:
+        return {
             "run_id": run_id, "timestamp": self._now(), "requirement": requirement,
-            "target": target_path, "worker": self.worker.name,
+            "target": target, "worker": self.worker.name,
             "checkpoints": [], "findings": [], "alarms": [], "spans": [],
             "halted": False, "errored": False, "escalations": [],
         }
 
-        # --- TOOL: ingest material (read-only) + GUARDRAIL: redact on the way in
+    def _reject_input(self, record: dict, alarms: AlarmBus, e: InputRejected) -> dict:
+        # Input guardrail breach: reject cleanly, never crash the run.
+        alarms.raise_alarm("INPUT_REJECTED", {"reason": e.reason, "detail": str(e)})
+        record["errored"] = True
+        record["halted"] = True
+        record["alarms"] = alarms.to_list()
+        self._finalize(record, halted=True)
+        return record
+
+    def run(self, target_path: str, requirement: str, run_id: str) -> dict:
+        """Scan a Terraform file or directory on disk (read-only)."""
+        alarms = AlarmBus()
+        record = self._new_record(run_id, requirement, target_path)
         self.guardrails.assert_read_only()
         try:
             with self.tracer.span("tool.ingest", target=target_path) as sp:
@@ -59,13 +70,25 @@ class Harness:
                 sp.attributes["resources"] = len(corpus.resources)
                 sp.attributes["redactions"] = len(secret_hits)
         except InputRejected as e:
-            # Input guardrail breach: reject cleanly, never crash the run.
-            alarms.raise_alarm("INPUT_REJECTED", {"reason": e.reason, "detail": str(e)})
-            record["errored"] = True
-            record["halted"] = True
-            record["alarms"] = alarms.to_list()
-            self._finalize(record, halted=True)
-            return record
+            return self._reject_input(record, alarms, e)
+        return self._evaluate(record, corpus, secret_hits, alarms, requirement)
+
+    def run_text(self, name: str, text: str, requirement: str, run_id: str) -> dict:
+        """Scan pasted Terraform text in memory — no filesystem access at all."""
+        alarms = AlarmBus()
+        record = self._new_record(run_id, requirement, f"paste:{name}")
+        try:
+            with self.tracer.span("tool.ingest", target=f"paste:{name}") as sp:
+                corpus, secret_hits = ingest_text(name, text)
+                sp.attributes["resources"] = len(corpus.resources)
+                sp.attributes["redactions"] = len(secret_hits)
+        except InputRejected as e:
+            return self._reject_input(record, alarms, e)
+        return self._evaluate(record, corpus, secret_hits, alarms, requirement)
+
+    def _evaluate(self, record: dict, corpus: ScanCorpus, secret_hits,
+                  alarms: AlarmBus, requirement: str) -> dict:
+        """Shared pipeline after ingest: secret-halt -> gates -> loop -> finalize."""
         self.guardrails.assert_corpus_redacted(corpus)
 
         # --- ALARM (critical): any hardcoded secret halts the run immediately
