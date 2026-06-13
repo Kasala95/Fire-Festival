@@ -84,12 +84,28 @@ class Harness:
 
         in_scope = [c for c in controls if c.id in mapped_ids][:MAX_CONTROLS_PER_RUN]
 
+        # Bounded-loop caps (the deck's "stop condition matters"): tokens + time.
+        max_tokens = self.guardrails.max_tokens_per_run()
+        max_seconds = self.guardrails.max_seconds_per_run()
+        started = record["timestamp"]
+
         # --- THE LOOP: one pass per control
         for control in in_scope:
             self.guardrails.assert_in_scope(control.id)
             finding = self._evaluate_one(control, corpus, alarms)
             record["findings"].append(finding.to_dict())
             if alarms.must_halt:                      # stop condition
+                record["halted"] = True
+                break
+            # caps check: halt the loop if the run blew its token or time budget
+            m = self.tracer.metrics()
+            total_tokens = m["tokens_in"] + m["tokens_out"]
+            elapsed = self._now() - started
+            if (max_tokens and total_tokens > max_tokens) or \
+               (max_seconds and elapsed > max_seconds):
+                alarms.raise_alarm("LIMIT_EXCEEDED", {
+                    "tokens": total_tokens, "elapsed_s": round(elapsed, 2),
+                    "max_tokens": max_tokens, "max_seconds": max_seconds})
                 record["halted"] = True
                 break
 
@@ -157,10 +173,24 @@ class Harness:
             risk = {"score": 0, "decision": "NO-SHIP", "critical_fail": True}
         record["risk"] = risk
         record["metrics"] = self.tracer.metrics()
+        record["metrics"]["run_seconds"] = round(self._now() - record["timestamp"], 4)
         record["spans"] = self.tracer.to_list()
         # CICD control proof: a persisted, gated decision now exists for this run.
         record["decision"] = risk["decision"]
         self.store.save(record["run_id"], record)
+
+        # Service layer (best-effort): index the run for the history dashboard and
+        # emit Prometheus metrics. Neither may ever break a run, so both are guarded.
+        try:
+            from ..db.run_repository import RunRepository
+            RunRepository().save_run(record)
+        except Exception:
+            pass
+        try:
+            from ..observability import metrics as prom
+            prom.record_run(record)
+        except Exception:
+            pass
 
     # ------------------------------------------------------------------
     def replay(self, run_id: str, from_gate: str | None = None) -> dict:

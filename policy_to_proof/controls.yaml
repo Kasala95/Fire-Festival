@@ -11,6 +11,8 @@ guardrails:
   redact_secrets: true          # detected secrets are redacted before reaching agent/logs
   scope_lock: true              # worker may only evaluate control_ids declared below
   max_worker_confidence_for_auto: 0.6  # below this, escalate to human review
+  max_tokens_per_run: 100000    # bounded-loop cap: halt (LIMIT_EXCEEDED) if total tokens exceed this
+  max_seconds_per_run: 60       # bounded-loop cap: halt (LIMIT_EXCEEDED) if wall-clock exceeds this
 
 framework: SOC 2 (vertical slice v1)
 

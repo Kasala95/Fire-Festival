@@ -50,6 +50,15 @@ class Guardrails:
         # The harness opens target files read-only by construction (see ingest).
         return bool(self.config.get("read_only_target", True))
 
+    # ---- bounded-loop caps (turns / tokens / time) ---------------------
+    def max_tokens_per_run(self) -> int:
+        """Token budget for one run; 0 means unlimited."""
+        return int(self.config.get("max_tokens_per_run", 0))
+
+    def max_seconds_per_run(self) -> float:
+        """Wall-clock budget for one run in seconds; 0 means unlimited."""
+        return float(self.config.get("max_seconds_per_run", 0))
+
     # ---- redaction boundary --------------------------------------------
     def assert_corpus_redacted(self, corpus: ScanCorpus) -> None:
         if not self.config.get("redact_secrets", True):
