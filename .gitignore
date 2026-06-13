@@ -6,4 +6,6 @@ node_modules/
 __pycache__/
 *.pyc
 runs/*.json
+runs/*.db
+runs/*.db-journal
 !runs/.gitkeep
