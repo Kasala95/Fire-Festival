@@ -1,0 +1,88 @@
+# controls.yaml — DECLARED guardrails and control definitions.
+# This file is the single source of truth for what the harness is allowed to
+# evaluate. The agent (worker) is scope-locked to exactly these control_ids.
+# Guardrails are declared here, not implicit in code.
+
+guardrails:
+  # Enforced by the harness on every worker call. The agent never sees these
+  # as instructions it can ignore — they are applied around its output.
+  no_unproven_pass: true        # a PASS is only valid with >=1 verifiable artifact
+  read_only_target: true        # the harness never writes to the scanned target
+  redact_secrets: true          # detected secrets are redacted before reaching agent/logs
+  scope_lock: true              # worker may only evaluate control_ids declared below
+  max_worker_confidence_for_auto: 0.6  # below this, escalate to human review
+
+framework: SOC 2 (vertical slice v1)
+
+controls:
+  - id: AC-LOG
+    name: Access logging
+    requirement: >
+      Audit-relevant activity must be logged. CloudTrail enabled, S3 server
+      access logging on buckets, and VPC flow logs present.
+    category: access_logging
+    pass_criteria:
+      - CloudTrail trail resource exists and is multi-region or enabled
+      - S3 buckets have access logging configured
+      - VPC flow logs resource present
+    evidence_rule: >
+      PASS requires at least one logging resource artifact (aws_cloudtrail,
+      aws_s3_bucket_logging / logging block, or aws_flow_log) with file+line.
+    scanner: access_logging
+
+  - id: IAM-LP
+    name: Least privilege
+    requirement: >
+      IAM policies must not grant wildcard ("*") actions or resources.
+    category: least_privilege
+    pass_criteria:
+      - No IAM policy document Action is "*" or "service:*"
+      - No IAM policy document Resource is "*"
+    evidence_rule: >
+      PASS requires every discovered IAM policy document to be artifact-checked
+      and free of wildcards. Any wildcard is a CONTROL_FAILED violation.
+    scanner: iam_least_privilege
+
+  - id: SEC-MGMT
+    name: Secrets management
+    requirement: >
+      No hardcoded credentials in config. Secrets must be referenced via KMS /
+      secrets manager, not inline literals.
+    category: secrets
+    pass_criteria:
+      - No hardcoded access keys, passwords, private keys, or tokens
+      - Sensitive values reference aws_kms_key / secretsmanager / SSM
+    evidence_rule: >
+      Any detected hardcoded secret is a SECRET_EXPOSED alarm (critical, halt).
+      PASS requires zero secrets AND at least one KMS/secrets-manager reference.
+    scanner: secrets
+
+  - id: ENC
+    name: Encryption
+    requirement: >
+      Data encrypted at rest (S3/RDS/EBS encrypted=true) and in transit (TLS
+      enforced / no plaintext HTTP listeners).
+    category: encryption
+    pass_criteria:
+      - S3 buckets have server-side encryption configured
+      - RDS instances storage_encrypted = true
+      - EBS volumes encrypted = true
+      - No plaintext HTTP (port 80) listener without redirect
+    evidence_rule: >
+      PASS requires an explicit encrypted=true / sse artifact per applicable
+      resource. Missing or false encryption is an INSECURE_DEFAULT / CONTROL_FAILED.
+    scanner: encryption
+
+  - id: CICD
+    name: CI/CD deployment gate
+    requirement: >
+      The harness itself must run as a deployment gate: a ship/no-ship decision
+      backed by the control matrix must exist before deploy.
+    category: cicd
+    pass_criteria:
+      - A run produced a persisted decision artifact (ship / no-ship)
+      - Risk score computed from the other four controls
+    evidence_rule: >
+      PASS requires a persisted checkpoint decision artifact for this run.
+      This control is satisfied by the harness producing a gated decision.
+    scanner: cicd_gate

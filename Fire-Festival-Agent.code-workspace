@@ -1,0 +1,21 @@
+{
+  "folders": [
+    {
+      "name": "Fire-Festival Agent",
+      "path": "."
+    },
+    {
+      "name": "Source",
+      "path": "src"
+    }
+  ],
+  "settings": {
+    "files.exclude": {
+      "**/.git": true
+    },
+    "editor.formatOnSave": true
+  },
+  "extensions": {
+    "recommendations": []
+  }
+}
