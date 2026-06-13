@@ -6,6 +6,7 @@
   <title>Policy-to-Proof — compliance harness</title>
   <link rel="stylesheet" href="/style.css" />
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
 </head>
 <body>
   <header>
@@ -22,10 +23,16 @@
   <main>
     <section class="panel scan-panel">
       <h2>New scan</h2>
-      <label>Target
+      <label class="checkrow"><input type="checkbox" id="paste-toggle" /> Paste my own Terraform</label>
+      <label id="target-wrap">Target
         <select id="target"></select>
       </label>
       <p id="blurb" class="blurb"></p>
+      <label id="paste-wrap" class="hidden">Terraform (max 512 KB)
+        <textarea id="terraform" rows="8" placeholder='resource "aws_db_instance" "db" {
+  storage_encrypted = false
+}'></textarea>
+      </label>
       <label>Requirement
         <textarea id="requirement" rows="2">make this app SOC 2 ready before deployment</textarea>
       </label>
