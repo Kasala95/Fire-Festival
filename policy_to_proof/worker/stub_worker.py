@@ -19,19 +19,21 @@ class StubWorker:
 
     def map_requirement(self, requirement: str, controls: list[Control]) -> list[str]:
         req = requirement.lower()
+        ids = {c.id for c in controls}
+        # Umbrella requirement ("SOC 2 ready", "make this compliant") => all controls.
+        umbrella = ("soc 2", "soc2", "compliant", "compliance", "ready", "audit-ready")
+        if any(u in req for u in umbrella):
+            return [c.id for c in controls]
+        # Otherwise, map by topic keywords.
         keywords = {
             "AC-LOG": ["log", "audit", "cloudtrail", "trail", "flow"],
             "IAM-LP": ["least privilege", "iam", "wildcard", "permission", "policy"],
-            "SEC-MGMT": ["secret", "credential", "password", "key", "kms"],
-            "ENC": ["encrypt", "tls", "at rest", "in transit", "kms"],
-            "CICD": ["ci/cd", "cicd", "pipeline", "deploy", "gate", "soc 2", "soc2", "compliance"],
+            "SEC-MGMT": ["secret", "credential", "password", "kms"],
+            "ENC": ["encrypt", "tls", "at rest", "in transit"],
+            "CICD": ["ci/cd", "cicd", "pipeline", "deploy", "gate"],
         }
-        hits = [cid for cid, kws in keywords.items()
-                if any(k in req for k in kws) and any(c.id == cid for c in controls)]
-        # "soc 2 ready" style umbrella requirement => all controls in scope.
-        if not hits and ("soc 2" in req or "soc2" in req or "compliant" in req or "ready" in req):
-            return [c.id for c in controls]
-        return hits
+        return [cid for cid, kws in keywords.items()
+                if cid in ids and any(k in req for k in kws)]
 
     def evaluate(self, control: Control, corpus: ScanCorpus,
                  scan: ControlScan) -> Finding:

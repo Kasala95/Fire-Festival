@@ -1,0 +1,14 @@
+# Render.com deployment for the Policy-to-Proof Streamlit harness.
+# Deploy: push to GitHub, then "New > Blueprint" in Render pointing at this repo.
+services:
+  - type: web
+    name: policy-to-proof
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false        # set in the Render dashboard; never commit the key
+      - key: PYTHON_VERSION
+        value: "3.12.6"
