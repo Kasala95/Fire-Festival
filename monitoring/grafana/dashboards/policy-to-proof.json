@@ -98,6 +98,45 @@
       "targets": [ { "refId": "A", "expr": "sum by (status) (p2p_control_results_total)", "legendFormat": "{{status}}", "datasource": { "type": "prometheus", "uid": "prometheus" } } ],
       "fieldConfig": { "defaults": { "unit": "none" }, "overrides": [] },
       "options": { "legend": { "showLegend": true, "placement": "bottom" }, "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 9,
+      "type": "gauge",
+      "title": "Eval pass rate (golden corpus)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 17 },
+      "targets": [ { "refId": "A", "expr": "p2p_eval_pass_rate", "datasource": { "type": "prometheus", "uid": "prometheus" } } ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0, "max": 1, "unit": "percentunit",
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "red", "value": null },
+            { "color": "orange", "value": 0.9 },
+            { "color": "green", "value": 1 }
+          ] }
+        }, "overrides": []
+      },
+      "options": { "showThresholdMarkers": true }
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Worker / scanner errors",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 17 },
+      "targets": [ { "refId": "A", "expr": "sum by (type) (p2p_alarms_total{type=~\"WORKER_ERROR|SCANNER_ERROR\"})", "legendFormat": "{{type}}", "datasource": { "type": "prometheus", "uid": "prometheus" } } ],
+      "fieldConfig": { "defaults": { "unit": "none", "custom": { "drawStyle": "bars", "fillOpacity": 60 } }, "overrides": [] },
+      "options": { "legend": { "showLegend": true, "placement": "bottom" } }
+    },
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "Inputs rejected (guardrail)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 17 },
+      "targets": [ { "refId": "A", "expr": "sum by (reason) (p2p_input_rejected_total)", "legendFormat": "{{reason}}", "datasource": { "type": "prometheus", "uid": "prometheus" } } ],
+      "fieldConfig": { "defaults": { "unit": "none", "color": { "mode": "fixed", "fixedColor": "orange" } }, "overrides": [] },
+      "options": { "colorMode": "value", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } }
     }
   ]
 }

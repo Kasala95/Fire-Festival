@@ -1,0 +1,46 @@
+groups:
+  - name: policy-to-proof
+    rules:
+      - alert: SecretExposed
+        expr: increase(p2p_alarms_total{type="SECRET_EXPOSED"}[5m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "Hardcoded secret detected — a scan halted on SECRET_EXPOSED"
+
+      - alert: WorkerErrors
+        expr: increase(p2p_alarms_total{type="WORKER_ERROR"}[5m]) > 0
+        labels:
+          severity: high
+        annotations:
+          summary: "Judgment engine (worker) is failing"
+
+      - alert: ScannerErrors
+        expr: increase(p2p_alarms_total{type="SCANNER_ERROR"}[5m]) > 0
+        labels:
+          severity: high
+        annotations:
+          summary: "A deterministic scanner errored (failed closed)"
+
+      - alert: EvalPassRateLow
+        expr: p2p_eval_pass_rate < 0.9
+        for: 1m
+        labels:
+          severity: high
+        annotations:
+          summary: "Eval pass-rate dropped below 90% — possible scanner/judgment regression"
+
+      - alert: SlowRuns
+        expr: histogram_quantile(0.95, sum(rate(p2p_run_duration_seconds_bucket[5m])) by (le)) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "p95 run duration above 5s"
+
+      - alert: InputRejections
+        expr: increase(p2p_input_rejected_total[5m]) > 0
+        labels:
+          severity: info
+        annotations:
+          summary: "Inputs are being rejected by an input guardrail (size/resource cap)"
