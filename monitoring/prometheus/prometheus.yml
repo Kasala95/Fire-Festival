@@ -1,0 +1,10 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: policy-to-proof
+    # The harness API runs on the host (uvicorn on :8000). host.docker.internal
+    # resolves to the host from inside the Prometheus container.
+    static_configs:
+      - targets: ["host.docker.internal:8000"]

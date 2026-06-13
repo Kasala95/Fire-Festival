@@ -1,0 +1,103 @@
+{
+  "uid": "policy-to-proof",
+  "title": "Policy-to-Proof — harness observability",
+  "tags": ["policy-to-proof", "compliance"],
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "refresh": "5s",
+  "time": { "from": "now-1h", "to": "now" },
+  "templating": { "list": [] },
+  "annotations": { "list": [] },
+  "panels": [
+    {
+      "id": 1,
+      "type": "gauge",
+      "title": "Last risk score",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 0 },
+      "targets": [ { "refId": "A", "expr": "p2p_last_risk_score", "datasource": { "type": "prometheus", "uid": "prometheus" } } ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0, "max": 100, "unit": "none",
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "red", "value": null },
+            { "color": "orange", "value": 60 },
+            { "color": "green", "value": 80 }
+          ] }
+        }, "overrides": []
+      },
+      "options": { "showThresholdLabels": false, "showThresholdMarkers": true }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Total runs",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "targets": [ { "refId": "A", "expr": "sum(p2p_runs_total)", "datasource": { "type": "prometheus", "uid": "prometheus" } } ],
+      "fieldConfig": { "defaults": { "unit": "none", "color": { "mode": "fixed", "fixedColor": "blue" } }, "overrides": [] },
+      "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Runs halted",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "targets": [ { "refId": "A", "expr": "p2p_halts_total", "datasource": { "type": "prometheus", "uid": "prometheus" } } ],
+      "fieldConfig": { "defaults": { "unit": "none", "color": { "mode": "fixed", "fixedColor": "red" } }, "overrides": [] },
+      "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "p95 run duration",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "targets": [ { "refId": "A", "expr": "histogram_quantile(0.95, sum(rate(p2p_run_duration_seconds_bucket[5m])) by (le))", "datasource": { "type": "prometheus", "uid": "prometheus" } } ],
+      "fieldConfig": { "defaults": { "unit": "s", "color": { "mode": "fixed", "fixedColor": "purple" } }, "overrides": [] },
+      "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Tokens consumed",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 4 },
+      "targets": [ { "refId": "A", "expr": "sum(p2p_tokens_total)", "datasource": { "type": "prometheus", "uid": "prometheus" } } ],
+      "fieldConfig": { "defaults": { "unit": "none", "color": { "mode": "fixed", "fixedColor": "green" } }, "overrides": [] },
+      "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 6,
+      "type": "piechart",
+      "title": "Runs by decision",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 12, "x": 12, "y": 4 },
+      "targets": [ { "refId": "A", "expr": "sum by (decision) (p2p_runs_total)", "legendFormat": "{{decision}}", "datasource": { "type": "prometheus", "uid": "prometheus" } } ],
+      "fieldConfig": { "defaults": { "unit": "none" }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "legend": { "showLegend": true, "placement": "right" } }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Alarms by type",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 8 },
+      "targets": [ { "refId": "A", "expr": "sum by (type) (p2p_alarms_total)", "legendFormat": "{{type}}", "datasource": { "type": "prometheus", "uid": "prometheus" } } ],
+      "fieldConfig": { "defaults": { "unit": "none", "custom": { "drawStyle": "bars", "fillOpacity": 50, "stacking": { "mode": "normal" } } }, "overrides": [] },
+      "options": { "legend": { "showLegend": true, "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+    },
+    {
+      "id": 8,
+      "type": "barchart",
+      "title": "Control results by status",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 8 },
+      "targets": [ { "refId": "A", "expr": "sum by (status) (p2p_control_results_total)", "legendFormat": "{{status}}", "datasource": { "type": "prometheus", "uid": "prometheus" } } ],
+      "fieldConfig": { "defaults": { "unit": "none" }, "overrides": [] },
+      "options": { "legend": { "showLegend": true, "placement": "bottom" }, "reduceOptions": { "calcs": ["lastNotNull"] } }
+    }
+  ]
+}
