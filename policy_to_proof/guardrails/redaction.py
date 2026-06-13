@@ -25,6 +25,13 @@ SECRET_PATTERNS: list[tuple[str, re.Pattern, int]] = [
 ]
 
 
+# Per-line scan cap: secret tokens are short and appear near a keyword, so we only
+# need to scan the start of any pathologically long line. Bounds regex work to keep
+# redaction linear even on hostile single-line inputs (defense-in-depth with the
+# total-size guardrail in ingest).
+MAX_LINE_SCAN = 10_000
+
+
 @dataclass
 class SecretHit:
     rule: str
@@ -45,8 +52,9 @@ def redact_text(file_path: str, text: str) -> tuple[str, list[SecretHit]]:
     lines = text.splitlines()
     for idx, line in enumerate(lines, start=1):
         new_line = line
+        scan_target = line if len(line) <= MAX_LINE_SCAN else line[:MAX_LINE_SCAN]
         for rule, pattern, group in SECRET_PATTERNS:
-            for m in pattern.finditer(line):
+            for m in pattern.finditer(scan_target):
                 secret = m.group(group)
                 new_line = new_line.replace(secret, _mask(secret))
                 hits.append(SecretHit(rule=rule, file=file_path, line=idx,

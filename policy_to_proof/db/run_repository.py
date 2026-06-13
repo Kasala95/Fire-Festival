@@ -8,9 +8,13 @@ The JSON file remains the source of truth; this is a queryable index on top, so
 from __future__ import annotations
 
 import json
+import sqlite3
+import time
 from pathlib import Path
 
 from .migrate import DB_PATH, get_db
+
+_WRITE_RETRIES = 4   # retry transient "database is locked" under concurrent writes
 
 
 class RunRepository:
@@ -32,18 +36,24 @@ class RunRepository:
             1 if record.get("escalations") else 0,
             json.dumps(record, default=str),
         )
-        conn = get_db(self._db_path)
-        try:
-            with conn:
-                conn.execute(
-                    """INSERT OR REPLACE INTO runs
-                       (run_id, created_at, requirement, target, worker,
-                        decision, risk_score, halted, escalated, record_json)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                    row,
-                )
-        finally:
-            conn.close()
+        for attempt in range(_WRITE_RETRIES):
+            conn = get_db(self._db_path)
+            try:
+                with conn:
+                    conn.execute(
+                        """INSERT OR REPLACE INTO runs
+                           (run_id, created_at, requirement, target, worker,
+                            decision, risk_score, halted, escalated, record_json)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        row,
+                    )
+                return
+            except sqlite3.OperationalError:
+                if attempt == _WRITE_RETRIES - 1:
+                    raise
+                time.sleep(0.1 * (attempt + 1))   # brief backoff, then retry
+            finally:
+                conn.close()
 
     def list_runs(self, limit: int = 50) -> list[dict]:
         """Most-recent-first summary rows for the history table."""

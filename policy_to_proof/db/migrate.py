@@ -18,11 +18,17 @@ SCHEMA_PATH = Path(__file__).with_name("schema.sql")
 
 
 def connect(db_path: Path | str = DB_PATH) -> sqlite3.Connection:
-    """Open a SQLite connection with dict-like rows. Creates parent dir."""
+    """Open a SQLite connection with dict-like rows. Creates parent dir.
+
+    WAL mode + a busy timeout let concurrent scans (the API runs one Harness per
+    request in a threadpool) write without tripping over each other's locks.
+    """
     path = Path(db_path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(path))
+    conn = sqlite3.connect(str(path), timeout=5.0)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=5000")
     return conn
 
 

@@ -15,6 +15,9 @@ from dataclasses import dataclass, field
 from typing import Callable
 from ..types import Control, EvidenceRef, ScanCorpus
 
+# Marker note prefix the orchestrator looks for to raise a SCANNER_ERROR alarm.
+SCANNER_ERROR_NOTE = "scanner_error:"
+
 
 @dataclass
 class ControlScan:
@@ -58,7 +61,20 @@ def run_scanner(control: Control, corpus: ScanCorpus) -> ControlScan:
     if fn is None:
         return ControlScan(control_id=control.id,
                            notes=[f"no scanner registered for '{control.scanner}'"])
-    return fn(control, corpus)
+    try:
+        return fn(control, corpus)
+    except Exception as e:
+        # FAIL-CLOSED: a scanner that blows up on hostile input must never crash the
+        # run or silently pass the control. Emit a synthetic violation (forces FAIL at
+        # the evidence gate) plus a marker note so the orchestrator alarms.
+        return ControlScan(
+            control_id=control.id,
+            violations=[EvidenceRef(
+                file=getattr(corpus, "source_root", "?"), line=0,
+                snippet=f"scanner '{control.scanner}' errored: {type(e).__name__}",
+                kind="violation")],
+            notes=[f"{SCANNER_ERROR_NOTE} {type(e).__name__}: {e}"],
+        )
 
 
 # Import side-effect: register all built-in scanner tools.

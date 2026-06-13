@@ -17,6 +17,9 @@ CATALOG: dict[str, tuple[str, str, bool]] = {
     "UNMAPPED_REQUIREMENT": ("medium",   "No control maps to this requirement. Escalate to a human (HITL).", False),
     "LOW_CONFIDENCE_FINDING": ("low",    "Worker confidence below threshold. Route to human review.", False),
     "LIMIT_EXCEEDED":         ("high",    "Bounded-loop cap hit (tokens/time). Halt and review run scope.", True),
+    "WORKER_ERROR":           ("critical", "The judgment engine (worker) failed. Halt the run; do not certify on a broken engine.", True),
+    "SCANNER_ERROR":          ("high",    "A deterministic scanner errored; the control was failed closed. Investigate the input/scanner.", False),
+    "INPUT_REJECTED":         ("medium",  "Input violated a guardrail (too large / too many resources). Reduce the material and retry.", False),
 }
 
 

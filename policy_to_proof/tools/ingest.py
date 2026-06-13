@@ -23,6 +23,20 @@ _RESOURCE_RE = re.compile(r'^\s*resource\s+"([^"]+)"\s+"([^"]+)"\s*\{')
 _BLOCK_RE = re.compile(r'^\s*([a-z0-9_]+)\s*\{')          # nested block open
 _ATTR_RE = re.compile(r'^\s*([a-zA-Z0-9_]+)\s*=\s*(.+?)\s*$')
 
+# Bounded-input guardrails (the deck's "size-limit" input guardrail). Hostile or
+# accidental giant inputs are rejected up front rather than melting the parser.
+MAX_INPUT_BYTES = 512_000   # 512 KB total across all files
+MAX_RESOURCES = 1_000       # too many resources -> reject, don't churn
+
+
+class InputRejected(ValueError):
+    """Raised when ingest material violates an input guardrail (too large / too many
+    resources). Carries a machine-friendly `reason` for metrics/alarms."""
+
+    def __init__(self, reason: str, detail: str = "") -> None:
+        self.reason = reason
+        super().__init__(detail or reason)
+
 
 def _read_files(root: str) -> dict[str, str]:
     files: dict[str, str] = {}
@@ -103,13 +117,23 @@ def _build_config_map(resources: list[dict]) -> dict:
     return cfg
 
 
-def ingest_path(root: str) -> tuple[ScanCorpus, list[SecretHit]]:
-    """Ingest a Terraform file or directory into a redacted ScanCorpus.
+def _enforce_size(raw_files: dict[str, str]) -> None:
+    total = sum(len(t.encode("utf-8", errors="ignore")) for t in raw_files.values())
+    if total > MAX_INPUT_BYTES:
+        raise InputRejected(
+            "input_too_large",
+            f"input is {total} bytes; limit is {MAX_INPUT_BYTES}")
 
-    Returns the corpus and the raw secret hits (so the harness can alarm before
-    the corpus — already redacted — flows to the agent).
+
+def _build_corpus(source_root: str, raw_files: dict[str, str]
+                  ) -> tuple[ScanCorpus, list[SecretHit]]:
+    """Redact + parse a name->text map into a ScanCorpus. Enforces input guardrails.
+
+    Shared by `ingest_path` (filesystem) and `ingest_text` (in-memory paste) so both
+    paths get identical size/resource caps and redaction.
     """
-    raw_files = _read_files(root)
+    _enforce_size(raw_files)
+
     redacted_files: dict[str, str] = {}
     all_hits: list[SecretHit] = []
     resources: list[dict] = []
@@ -119,12 +143,35 @@ def ingest_path(root: str) -> tuple[ScanCorpus, list[SecretHit]]:
         redacted_files[path] = red_text
         all_hits.extend(hits)
         resources.extend(_parse_terraform(path, red_text))
+        if len(resources) > MAX_RESOURCES:
+            raise InputRejected(
+                "too_many_resources",
+                f"input has >{MAX_RESOURCES} resources")
 
     corpus = ScanCorpus(
-        source_root=root,
+        source_root=source_root,
         files=redacted_files,
         resources=resources,
         config_map=_build_config_map(resources),
         redactions=[{"rule": h.rule, "file": h.file, "line": h.line} for h in all_hits],
     )
     return corpus, all_hits
+
+
+def ingest_path(root: str) -> tuple[ScanCorpus, list[SecretHit]]:
+    """Ingest a Terraform file or directory into a redacted ScanCorpus.
+
+    Returns the corpus and the raw secret hits (so the harness can alarm before
+    the corpus — already redacted — flows to the agent). Raises `InputRejected`
+    if the material violates an input guardrail.
+    """
+    return _build_corpus(root, _read_files(root))
+
+
+def ingest_text(name: str, text: str) -> tuple[ScanCorpus, list[SecretHit]]:
+    """Ingest pasted/in-memory Terraform text (no filesystem access).
+
+    Used by the public paste path: the text is redacted and parsed exactly like a
+    file, but never written to or read from disk. Same input guardrails apply.
+    """
+    return _build_corpus(name, {name: text})

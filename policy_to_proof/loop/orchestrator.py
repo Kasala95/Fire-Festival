@@ -17,10 +17,10 @@ control cap prevents runaway loops.
 """
 from __future__ import annotations
 
-from ..types import Control, ScanCorpus
+from ..types import Control, Finding, ScanCorpus
 from ..guardrails.guardrails import Guardrails
-from ..tools.ingest import ingest_path
-from ..tools.registry import run_scanner
+from ..tools.ingest import ingest_path, InputRejected
+from ..tools.registry import run_scanner, SCANNER_ERROR_NOTE
 from ..tools import evidence as evidence_tool
 from ..observability.alarms import AlarmBus
 from ..observability.tracer import Tracer
@@ -48,15 +48,24 @@ class Harness:
             "run_id": run_id, "timestamp": self._now(), "requirement": requirement,
             "target": target_path, "worker": self.worker.name,
             "checkpoints": [], "findings": [], "alarms": [], "spans": [],
-            "halted": False, "escalations": [],
+            "halted": False, "errored": False, "escalations": [],
         }
 
         # --- TOOL: ingest material (read-only) + GUARDRAIL: redact on the way in
         self.guardrails.assert_read_only()
-        with self.tracer.span("tool.ingest", target=target_path) as sp:
-            corpus, secret_hits = ingest_path(target_path)
-            sp.attributes["resources"] = len(corpus.resources)
-            sp.attributes["redactions"] = len(secret_hits)
+        try:
+            with self.tracer.span("tool.ingest", target=target_path) as sp:
+                corpus, secret_hits = ingest_path(target_path)
+                sp.attributes["resources"] = len(corpus.resources)
+                sp.attributes["redactions"] = len(secret_hits)
+        except InputRejected as e:
+            # Input guardrail breach: reject cleanly, never crash the run.
+            alarms.raise_alarm("INPUT_REJECTED", {"reason": e.reason, "detail": str(e)})
+            record["errored"] = True
+            record["halted"] = True
+            record["alarms"] = alarms.to_list()
+            self._finalize(record, halted=True)
+            return record
         self.guardrails.assert_corpus_redacted(corpus)
 
         # --- ALARM (critical): any hardcoded secret halts the run immediately
@@ -72,7 +81,18 @@ class Harness:
         # --- CHECKPOINT: parse_gate (requirement -> controls) ; else escalate (HITL)
         controls = list(self.guardrails.controls.values())
         with self.tracer.span("loop.parse_gate"):
-            mapped_ids = self.worker.map_requirement(requirement, controls)
+            try:
+                mapped_ids = self.worker.map_requirement(requirement, controls)
+            except Exception as e:
+                # ENGINE failed: visible alarm + hard stop. Never certify on a broken engine.
+                alarms.raise_alarm("WORKER_ERROR",
+                                   {"phase": "map_requirement",
+                                    "error": f"{type(e).__name__}: {e}"})
+                record["errored"] = True
+                record["halted"] = True
+                record["alarms"] = alarms.to_list()
+                self._finalize(record, halted=True)
+                return record
             parse = cp.parse_gate(requirement, mapped_ids)
         record["checkpoints"].append(parse.to_dict())
         if parse.escalate:
@@ -114,20 +134,39 @@ class Harness:
         record["checkpoints"].append(cp.control_gate(findings_objs).to_dict())
 
         record["alarms"] = alarms.to_list()
+        if any(a["type"] == "WORKER_ERROR" for a in record["alarms"]):
+            record["errored"] = True
         self._finalize(record, halted=record["halted"])
         return record
 
     # ------------------------------------------------------------------
     def _evaluate_one(self, control: Control, corpus: ScanCorpus, alarms: AlarmBus):
-        # TOOL: deterministic scan (the checking)
+        # TOOL: deterministic scan (the checking). run_scanner fails closed.
         with self.tracer.span("tool.scan", control=control.id) as sp:
             scan = run_scanner(control, corpus)
             sp.attributes["proofs"] = len(scan.proofs)
             sp.attributes["violations"] = len(scan.violations)
+        # A fail-closed scanner leaves a marker note -> raise a visible alarm.
+        scan_err = next((n for n in scan.notes if n.startswith(SCANNER_ERROR_NOTE)), None)
+        if scan_err:
+            alarms.raise_alarm("SCANNER_ERROR",
+                               {"control_id": control.id, "detail": scan_err})
 
         # ENGINE: worker judgment (wrapped by guardrails + a span)
         with self.tracer.span("llm.evaluate", control=control.id) as sp:
-            finding = self.worker.evaluate(control, corpus, scan)
+            try:
+                finding = self.worker.evaluate(control, corpus, scan)
+            except Exception as e:
+                # ENGINE failed on this control: alarm + fail-closed finding (the loop's
+                # must_halt check then halts the run on the critical WORKER_ERROR).
+                alarms.raise_alarm("WORKER_ERROR",
+                                   {"control_id": control.id, "phase": "evaluate",
+                                    "error": f"{type(e).__name__}: {e}"})
+                return Finding(
+                    control_id=control.id, status="FAIL",
+                    evidence=scan.violations[:8], confidence=0.0,
+                    rationale=f"worker error: {type(e).__name__}",
+                    remediation="", proposed_by=self.worker.name)
             sp.attributes["proposed_status"] = finding.status
             sp.attributes["confidence"] = finding.confidence
 
